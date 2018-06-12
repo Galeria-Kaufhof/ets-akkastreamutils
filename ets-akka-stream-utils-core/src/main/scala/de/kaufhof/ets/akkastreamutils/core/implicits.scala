@@ -10,26 +10,23 @@ import akka.util.ByteString
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
-//Documentation see StreamUtils.method
+//Documentation see StreamUtils.<method>Flow
 object implicits {
 
   /************* Source/Flow shared ops ****************/
 
   implicit class SourceSharedOps[T, Mat](val source: Source[T, Mat]) extends AnyVal {
 
-    def unfoldFinally[Out, State](initialState: () => State)
+    def scanFinally[Out, State](initialState: () => State)
                                  (unfold: (State, T) => (State, Option[Out]))
                                  (finalize: State => Option[Out]): Source[Out, Mat] =
-      source.via(StreamUtils.unfoldFinallyFlow(initialState)(unfold)(finalize))
+      source.via(StreamUtils.scanFinallyFlow(initialState)(unfold)(finalize))
 
-    def unfoldFinallyAsync[Out, State](initialState: () => State)
+    def scanFinallyAsync[Out, State](initialState: () => State)
                                       (unfold: (State, T) => Future[(State, Option[Out])])
                                       (finalize: State => Future[Option[Out]])
                                       (implicit ec: ExecutionContext): Source[Out, Mat] =
-      source.via(StreamUtils.unfoldFinallyAsyncFlow(initialState)(unfold)(finalize))
-
-    def finalLastElementAsyncFlow(lastElement: () => Future[T])(implicit ec: ExecutionContext): Source[T, Mat] =
-      source.via(StreamUtils.finalLastElementAsyncFlow(lastElement))
+      source.via(StreamUtils.scanFinallyAsyncFlow(initialState)(unfold)(finalize))
 
     def statefulFold[State](z: () => State)(f: (State, T) => State): Source[State, Mat] =
       source.via(StreamUtils.statefulFoldFlow(z)(f))
@@ -44,19 +41,16 @@ object implicits {
 
   implicit class FlowSharedOps[In, T, Mat](val flow: Flow[In, T, Mat]) extends AnyVal {
 
-    def unfoldFinally[Out, State](initialState: () => State)
+    def scanFinally[Out, State](initialState: () => State)
                                  (unfold: (State, T) => (State, Option[Out]))
                                  (finalize: State => Option[Out]): Flow[In, Out, Mat] =
-      flow.via(StreamUtils.unfoldFinallyFlow(initialState)(unfold)(finalize))
+      flow.via(StreamUtils.scanFinallyFlow(initialState)(unfold)(finalize))
 
-    def unfoldFinallyAsync[Out, State](initialState: () => State)
+    def scanFinallyAsync[Out, State](initialState: () => State)
                                       (unfold: (State, T) => Future[(State, Option[Out])])
                                       (finalize: State => Future[Option[Out]])
                                       (implicit ec: ExecutionContext): Flow[In, Out, Mat] =
-      flow.via(StreamUtils.unfoldFinallyAsyncFlow(initialState)(unfold)(finalize))
-
-    def finalLastElementAsyncFlow(lastElement: () => Future[T])(implicit ec: ExecutionContext): Flow[In, T, Mat] =
-      flow.via(StreamUtils.finalLastElementAsyncFlow(lastElement))
+      flow.via(StreamUtils.scanFinallyAsyncFlow(initialState)(unfold)(finalize))
 
     def statefulFold[State](z: () => State)(f: (State, T) => State): Flow[In, State, Mat] =
       flow.via(StreamUtils.statefulFoldFlow(z)(f))
