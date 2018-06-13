@@ -43,7 +43,8 @@ object StreamUtils {
   }
 
   /**
-    * Create a source that returns it's materialized value as a future. Allows accessing materialzed value before source is materialized.
+    * Create a source that returns it's materialized value as a future. Allows accessing materialzed value
+    * before source is materialized.
     *
     * ATTENTION: resulting source/future can only be used once!
     */
@@ -54,20 +55,25 @@ object StreamUtils {
   }
 
   /**
-    * Create a source that returns it's materialized future-value. Allows accessing materialzed value before source is materialized.
+    * Create a source that returns it's materialized future-value. Allows accessing materialzed value
+    * before source is materialized.
     *
     * ATTENTION: resulting source/future can only be used once!
     */
-  def preMatFutureSource[T, Mat](source: Source[T, Future[Mat]])(implicit ec: ExecutionContext): (Source[T, NotUsed], Future[Mat]) = {
+  def preMatFutureSource[T, Mat](source: Source[T, Future[Mat]])
+                                (implicit ec: ExecutionContext): (Source[T, NotUsed], Future[Mat]) = {
     val p = Promise[Future[Mat]]
     val src = source.mapMaterializedValue(mat => {p.success(mat); NotUsed})
     (src, p.future.flatMap(identity))
   }
 
   /**
-    * Allows decoding a bytestring to string with a given charset
+    * Allows decoding a bytestring to string with a given charset.
     */
-  def decodeCharFlow(charset: Charset, bufferSize: Int = 8192, onMalformedInput: CodingErrorAction = CodingErrorAction.REPLACE): Flow[ByteString, String, NotUsed] =
+  def decodeCharFlow(charset: Charset,
+                     bufferSize: Int = 8192,
+                     onMalformedInput: CodingErrorAction = CodingErrorAction.REPLACE): Flow[ByteString, String, NotUsed] =
+
     Flow[ByteString].statefulMapConcat{() =>
       val decoder = new CharDecoder(charset, bufferSize, onMalformedInput)
       (bs: ByteString) => {
@@ -78,10 +84,11 @@ object StreamUtils {
 
 
   /**
-    * Ensure for incoming ByteString that ourgoing ByteStrings are at least minLength bytes long. Last package may be smaller.
+    * Ensure for incoming ByteString that ourgoing ByteStrings are at least minLength bytes long.
+    * Last package may be smaller.
     */
-  def minLengthFlow(minLength: Int = 64*1024): Flow[ByteString, ByteString, _] =
-    unfoldFinallyFlow[ByteString, ByteString, ByteString](() => ByteString.empty){(bufferBs, newBs) =>
+  def minLengthFlow(minLength: Int = 64*1024): Flow[ByteString, ByteString, NotUsed] =
+    scanFinallyFlow[ByteString, ByteString, ByteString](() => ByteString.empty){(bufferBs, newBs) =>
         val nextBs = bufferBs ++ newBs
         if (nextBs.size >= minLength) {
           (ByteString.empty, Some(nextBs))
@@ -93,9 +100,10 @@ object StreamUtils {
       }
 
   /**
-    * Encode a ByteString with gzip, with a given minimal block size (to ensure encryption does not blow up size for small packages)
+    * Encode a ByteString with gzip, with a given minimal block size (to ensure encoding does not blow up size
+    * for small packages)
     */
-  def gzipEncodeFlow(minBlockSize: Int = 64*1024): Flow[ByteString, ByteString, _] =
+  def gzipEncodeFlow(minBlockSize: Int = 64*1024): Flow[ByteString, ByteString, NotUsed] =
     Flow[ByteString]
       .via(minLengthFlow(minBlockSize))
       .via(Gzip.encoderFlow)
@@ -105,8 +113,8 @@ object StreamUtils {
   /**
     * strip utf-8 bom from ByteString flow
     */
-  val stripBomFlow: Flow[ByteString, ByteString, _] =
-      unfoldFinallyFlow[ByteString, ByteString, (ByteString, Boolean)](() => (ByteString.empty, false)){(state, newBs) =>
+  val stripBomFlow: Flow[ByteString, ByteString, NotUsed] =
+      scanFinallyFlow[ByteString, ByteString, (ByteString, Boolean)](() => (ByteString.empty, false)){(state, newBs) =>
         val (bufferBs, bomChecked) = state
         if (bomChecked) {
           (state, Some(newBs))
@@ -126,15 +134,16 @@ object StreamUtils {
         Some(state._1)
       }
 
-  //used in sinkToSource
+  //used in fixedBroadcastHub
   private sealed trait ElemOrEnd[+T]
   private case class Elem[T](v: T) extends ElemOrEnd[T]
   private case class BlockPromise(p: Promise[Unit]) extends ElemOrEnd[Nothing]
   private case class Start(p: Promise[Unit]) extends ElemOrEnd[Nothing]
 
   /**
-    * Workaround for Broadcasthub: If the Broadcasthub-flow is closed before the source is used, all elements will be thrown away und the source will contain no elements when only using broadcasthub
-    * this method ensures that the flow does not end until the source has been used at least once
+    * Workaround for Broadcasthub Bug: If the Broadcasthub upstream is closed before the source is used, all elements
+    * cached by Broadcasthub so far will be thrown away und the source will contain no elements when using Broadcasthub
+    * directly. This method ensures that the flow does not end until the source has been used at least once.
     */
   def fixedBroadcastHub[T](implicit ec: ExecutionContext): Sink[T, Source[T, NotUsed]] = {
     Flow[T]
@@ -167,18 +176,24 @@ object StreamUtils {
   private case class UnfoldFinallyState[T, State](outElem: Option[T], state: Option[State])
 
   /**
-    * Unfolds incoming elements. Downstream elements of type Out2 are created if unfold returns Some[Out2].
+    * Scan an steroids:
+    * 1. State is recreated for each materialization
+    * 2. Allows customizing emitted elements
+    * 3. Allows final emittation of a last element after upstream completes
+    *
+    * Downstream elements of type Out are emitted if unfold returns (_, Some[Out]).
     * Before the stream is closed finalize is called once allowing to pass down one last element if needed.
-    * The initial state is recreated for each materialization
     */
-  def unfoldFinallyFlow[In, Out, State](initialState: () => State)(unfold: (State, In) => (State, Option[Out]))(finalize: State => Option[Out]): Flow[In, Out, NotUsed] =
+  def scanFinallyFlow[In, Out, State](initialState: () => State)
+                                     (scan: (State, In) => (State, Option[Out]))
+                                     (finalize: State => Option[Out]): Flow[In, Out, NotUsed] =
     Flow[In]
       .map(Element(_))
       .concat(Source.single(End))
       .scan(UnfoldFinallyState[Out, State](None, None)){(state, newElem) =>
         newElem match {
           case Element(e) =>
-            val (newState, nextElemOpt) = unfold(state.state.getOrElse(initialState()), e)
+            val (newState, nextElemOpt) = scan(state.state.getOrElse(initialState()), e)
             UnfoldFinallyState(nextElemOpt, Some(newState))
           case End =>
             state.copy(outElem = finalize(state.state.getOrElse(initialState())))
@@ -189,11 +204,18 @@ object StreamUtils {
       }
 
   /**
-    * Unfolds incoming elements. Downstream elements of type Out2 are created if unfold returns Some[Out2].
+    * Scan an steroids (async version):
+    * 1. State is recreated for each materialization
+    * 2. Allows customizing emitted elements
+    * 3. Allows final emittation of a last element after upstream completes
+    *
+    * Downstream elements of type Out are emitted if unfold returns (_, Some[Out]).
     * Before the stream is closed finalize is called once allowing to pass down one last element if needed.
-    * The initial state is recreated for each materialization
     */
-  def unfoldFinallyAsyncFlow[In, Out, State](initialState: () => State)(unfold: (State, In) => Future[(State, Option[Out])])(finalize: State => Future[Option[Out]])(implicit ec: ExecutionContext): Flow[In, Out, NotUsed] =
+  def scanFinallyAsyncFlow[In, Out, State](initialState: () => State)
+                                          (unfold: (State, In) => Future[(State, Option[Out])])
+                                          (finalize: State => Future[Option[Out]])
+                                          (implicit ec: ExecutionContext): Flow[In, Out, NotUsed] =
     Flow[In]
       .map(Element(_))
       .concat(Source.single(End))
@@ -213,18 +235,11 @@ object StreamUtils {
         case UnfoldFinallyState(Some(elem), _) => elem
       }
 
-
-  /**
-    * Allow to add a last element async & lazily to the end of the stream
-    */
-  def finalLastElementAsyncFlow[In](lastElement: () => Future[In])(implicit ec: ExecutionContext): Flow[In, In, NotUsed] =
-    Flow[In].via(unfoldFinallyAsyncFlow[In, In, Unit](() => ())((_, elem) => Future.successful(((), Some(elem))))(_ => lastElement().map(Some(_))))
-
   /**
     * like fold, but zero value is recreated for every materialization
     */
   def statefulFoldFlow[In, State](z: () => State)(f: (State, In) => State): Flow[In, State, NotUsed] =
-    unfoldFinallyFlow[In, State, State](z)((state, elem) => (f(state, elem), None))(Some(_))
+    scanFinallyFlow[In, State, State](z)((state, elem) => (f(state, elem), None))(Some(_))
 
   /**
     * Executes the given function every n-th element or after interval with duration d has passed.
@@ -237,13 +252,17 @@ object StreamUtils {
     * - If the function returns a failed future it will be passed to the stream.
     * - If the upstream throws an exception it will be passed downwards too regardless of f throwing.
     */
-  def executeWithinFlow[In](n: Int, d: FiniteDuration)(f: In => Future[Unit])(implicit ec: ExecutionContext): Flow[In, In, NotUsed] =
+  def executeWithinFlow[In](n: Int, d: FiniteDuration)
+                           (f: In => Future[Unit])
+                           (implicit ec: ExecutionContext): Flow[In, In, NotUsed] =
+
     Flow[In]
       .map(e => Right(e))
       .recover{case exc => Left(exc)}
       // async boundary is needed here so that timer inside groupedWithin is executed in own actor.
       // Otherwise syncrounous execution of code from prev. stages might prevent timer execution in time
-      // may be relatet to this issue: https://stackoverflow.com/questions/42845166/why-does-akka-streams-source-groupedwithin-not-respect-the-duration
+      // may be relatet to this issue:
+      // https://stackoverflow.com/questions/42845166/why-does-akka-streams-source-groupedwithin-not-respect-the-duration
       .async
       .groupedWithin(n,d)
       .mapAsync(1){elemsOrError =>
@@ -259,7 +278,7 @@ object StreamUtils {
               .getOrElse(Future.successful(()))
               //ignore exception thrown by f here because stream execption happend and will throw further down
               //this prevents stream exception from beeing hidden by exception thrown by f
-              .recover{case exc: Throwable => ()}
+              .recover{case _: Throwable => ()}
               .map(_ => immutable.Seq(elemsWithoutErrors, immutable.Seq(Left(exc))))
           case None =>
             Future.successful(immutable.Seq(elemsOrError))
@@ -278,10 +297,14 @@ object StreamUtils {
       })
 
   /**
-    * Folds elements according to user function `f` and zero value `z` and return the folded value on complete or on stream failure
-    * Result is a tuple with stream success/failure on left, and fold result on the right side
+    * Folds elements according to user function `f` and zero value `z` and return the folded value on complete AND
+    * on stream failure.
+    * Result is a tuple with stream success/failure on left, and fold result on the right side.
     */
-  def finallyFoldSink[In, Out](z: Out)(f: (Out, In) => Out)(implicit ec: ExecutionContext): Sink[In, (Future[Unit], Future[Out])] =
+  def finallyFoldSink[In, Out](z: Out)
+                              (f: (Out, In) => Out)
+                              (implicit ec: ExecutionContext): Sink[In, (Future[Unit], Future[Out])] =
+
     Flow[In]
       .map(elem => Right[Throwable, In](elem))
       .recover { case e: Throwable => Left[Throwable, In](e) }
@@ -305,22 +328,25 @@ object StreamUtils {
       }
 
   /**
-    * Return the success or failure of stream on the left side of tuple and last element that was passed
-    * through on the right side of the materialized value
+    * Return the success or failure of stream on the left side of materialzed tuple and the last element that was passed
+    * through on the right side of the materialized value tuple.
     */
   def finallyLastOptionSink[In](implicit ec: ExecutionContext): Sink[In, (Future[Unit], Future[Option[In]])] =
     finallyFoldSink(Option.empty[In])((agg, elem) => Some(elem))
 
   /**
-    * Applies a side effect function to each element. Exception of `sideEffect` will be propagated to stream.
+    * Applies a side effect function to each element. Exception of `sideEffect` will be propagated to the stream.
     * Does not modify elements in the stream.
     */
-  def sideEffectFlow[In](sideEffect: In => Unit): Flow[In, In, _] =
+  def sideEffectFlow[In](sideEffect: In => Unit): Flow[In, In, NotUsed] =
     Flow[In].map(elem => {sideEffect(elem); elem})
 
 }
 
-private[streamutils] class CharDecoder(charset: Charset, bufferSize: Int = 8192, onMalformedInput: CodingErrorAction = CodingErrorAction.REPLACE) {
+private[core] class CharDecoder(charset: Charset,
+                                       bufferSize: Int = 8192,
+                                       onMalformedInput: CodingErrorAction = CodingErrorAction.REPLACE) {
+
   private val decoder = charset.newDecoder().onMalformedInput(onMalformedInput)
 
   private val inputBuffer = ByteBuffer.allocate(bufferSize)
