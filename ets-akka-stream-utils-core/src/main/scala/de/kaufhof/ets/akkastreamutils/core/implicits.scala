@@ -4,7 +4,7 @@ import java.nio.charset.{Charset, CodingErrorAction}
 
 import akka.NotUsed
 import akka.stream.IOResult
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.stream.scaladsl.{Flow, Keep, RunnableGraph, Sink, Source}
 import akka.util.ByteString
 
 import scala.concurrent.duration.FiniteDuration
@@ -37,6 +37,15 @@ object implicits {
     def sideEffect(sideEffect: T => Unit): Source[T, Mat] =
       source.via(StreamUtils.sideEffectFlow(sideEffect))
 
+    def toSourceSink(implicit ec: ExecutionContext): RunnableGraph[(Mat, Source[T, NotUsed])] =
+      source.toMat(StreamUtils.fixedBroadcastHub[T])(Keep.both)
+
+    def finallyFoldSink[Out](z: Out)(f: (Out, T) => Out)(implicit ec: ExecutionContext): RunnableGraph[(Mat, (Future[Unit], Future[Out]))] =
+      source.toMat(StreamUtils.finallyFoldSink(z)(f))(Keep.both)
+
+    def finallyLastOptionSink(implicit ec: ExecutionContext): RunnableGraph[(Mat, (Future[Unit], Future[Option[T]]))] =
+      source.toMat(StreamUtils.finallyLastOptionSink)(Keep.both)
+
   }
 
   implicit class FlowSharedOps[In, T, Mat](val flow: Flow[In, T, Mat]) extends AnyVal {
@@ -60,6 +69,15 @@ object implicits {
 
     def sideEffect(sideEffect: T => Unit): Flow[In, T, Mat] =
       flow.via(StreamUtils.sideEffectFlow(sideEffect))
+
+    def toSourceSink(implicit ec: ExecutionContext): Sink[In, (Mat, Source[T, NotUsed])] =
+      flow.toMat(StreamUtils.fixedBroadcastHub[T])(Keep.both)
+
+    def finallyFoldSink[Out](z: Out)(f: (Out, T) => Out)(implicit ec: ExecutionContext): Sink[In, (Mat, (Future[Unit], Future[Out]))] =
+      flow.toMat(StreamUtils.finallyFoldSink(z)(f))(Keep.both)
+
+    def finallyLastOptionSink(implicit ec: ExecutionContext): Sink[In, (Mat, (Future[Unit], Future[Option[T]]))] =
+      flow.toMat(StreamUtils.finallyLastOptionSink)(Keep.both)
 
   }
 
@@ -116,21 +134,6 @@ object implicits {
   implicit class SourceFutureMatOps[Out, Mat](val source: Source[Out, Future[Mat]]) extends AnyVal {
 
     def withPreMat(implicit ec: ExecutionContext): (Source[Out, NotUsed], Future[Mat]) = StreamUtils.preMatFutureSource(source)
-
-  }
-
-  /************ Flow only ****************/
-
-  implicit class FlowOnlyOps[In, T, Mat](val flow: Flow[In, T, Mat]) extends AnyVal {
-
-    def toSourceSink(implicit ec: ExecutionContext): Sink[In, Source[T, NotUsed]] =
-      flow.toMat(StreamUtils.fixedBroadcastHub[T])(Keep.right)
-
-    def finallyFoldSink[Out](z: Out)(f: (Out, T) => Out)(implicit ec: ExecutionContext): Sink[In, (Future[Unit], Future[Out])] =
-      flow.toMat(StreamUtils.finallyFoldSink(z)(f))(Keep.right)
-
-    def finallyLastOptionSink(implicit ec: ExecutionContext): Sink[In, (Future[Unit], Future[Option[T]])] =
-      flow.toMat(StreamUtils.finallyLastOptionSink)(Keep.right)
 
   }
 
