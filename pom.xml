@@ -4,14 +4,19 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>de.kaufhof.ets</groupId>
-    <artifactId>ets-akka-stream-utils-build</artifactId>
+    <parent>
+        <groupId>de.kaufhof.ets</groupId>
+        <artifactId>ets-poms-aggregator-parent</artifactId>
+        <version>[0.1.0,1)</version>
+        <relativePath />
+    </parent>
+
+    <artifactId>ets-akka-stream-utils-aggregator</artifactId>
     <packaging>pom</packaging>
     <version>0.1-SNAPSHOT</version>
 
     <modules>
         <module>ets-akka-stream-utils-core</module>
     </modules>
-
 
 </project>
