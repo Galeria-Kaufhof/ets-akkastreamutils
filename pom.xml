@@ -17,6 +17,7 @@
 
     <modules>
         <module>ets-akkastreamutils-core</module>
+        <module>ets-akkastreamutils-charset</module>
     </modules>
 
 </project>

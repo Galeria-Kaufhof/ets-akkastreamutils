@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>de.kaufhof.ets</groupId>
+        <artifactId>ets-poms-library-parent</artifactId>
+        <version>[0.1.0,1)</version>
+        <relativePath />
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- must not be the same as the parent because the parent is NOT the same project! -->
+    <version>0.1-SNAPSHOT</version>
+    <artifactId>ets-akkastreamutils-charset</artifactId>
+
+    <!-- For galeria kaufhof internal purposes only, this profile will be removed in future!
+    This will not work for releases! The idea is to call mvn -P scala-2.11 package and copy the pure target/<lib>.jar
+    to the project using deprecated scala 2.11-->
+    <profiles>
+        <profile>
+            <id>scala-2.11</id>
+            <properties>
+                <ets.scala.version>2.11.12</ets.scala.version>
+                <ets.scala.compat.version>2.11</ets.scala.compat.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.scalatest</groupId>
+                        <artifactId>scalatest-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>net.alchim31.maven</groupId>
+                        <artifactId>scala-maven-plugin</artifactId>
+                        <configuration>
+                            <args combine.self="override">
+                                <arg>-deprecation</arg>
+                                <arg>-encoding</arg><arg>utf-8</arg>
+                                <arg>-explaintypes</arg>
+                                <arg>-feature</arg>
+                                <arg>-language:existentials</arg>
+                                <arg>-language:experimental.macros</arg>
+                                <arg>-language:higherKinds</arg>
+                                <arg>-language:implicitConversions</arg>
+                                <arg>-unchecked</arg>
+                                <arg>-Xcheckinit</arg>
+                                <arg>-Xfatal-warnings</arg>
+                                <arg>-Xfuture</arg>
+                                <arg>-Xlint:adapted-args</arg>
+                                <arg>-Xlint:by-name-right-associative</arg>
+                                <arg>-Xlint:delayedinit-select</arg>
+                                <arg>-Xlint:doc-detached</arg>
+                                <arg>-Xlint:inaccessible</arg>
+                                <arg>-Xlint:infer-any</arg>
+                                <arg>-Xlint:missing-interpolator</arg>
+                                <arg>-Xlint:nullary-override</arg>
+                                <arg>-Xlint:nullary-unit</arg>
+                                <arg>-Xlint:option-implicit</arg>
+                                <arg>-Xlint:package-object-classes</arg>
+                                <arg>-Xlint:poly-implicit-overload</arg>
+                                <arg>-Xlint:private-shadow</arg>
+                                <arg>-Xlint:stars-align</arg>
+                                <arg>-Xlint:type-parameter-shadow</arg>
+                                <arg>-Xlint:unsound-match</arg>
+                                <arg>-Yno-adapted-args</arg>
+                                <arg>-Ypartial-unification</arg>
+                                <arg>-Ywarn-dead-code</arg>
+                                <arg>-Ywarn-inaccessible</arg>
+                                <arg>-Ywarn-infer-any</arg>
+                                <arg>-Ywarn-nullary-override</arg>
+                                <arg>-Ywarn-nullary-unit</arg>
+                                <arg>-Ywarn-numeric-widen</arg>
+                                <arg>-Ywarn-value-discard</arg>
+                            </args>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor_${ets.scala.compat.version}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http_${ets.scala.compat.version}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-stream_${ets.scala.compat.version}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>de.kaufhof.ets</groupId>
+            <artifactId>ets-akkastreamutils-core</artifactId>
+            <version>0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.googlecode.juniversalchardet</groupId>
+            <artifactId>juniversalchardet</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${ets.scala.compat.version}</artifactId>
+        </dependency>
+
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <configuration>
+                    <args>
+                        <arg>-deprecation</arg>
+                        <arg>-encoding</arg><arg>utf-8</arg>
+                        <arg>-explaintypes</arg>
+                        <arg>-feature</arg>
+                        <arg>-language:existentials</arg>
+                        <arg>-language:experimental.macros</arg>
+                        <arg>-language:higherKinds</arg>
+                        <arg>-language:implicitConversions</arg>
+                        <arg>-unchecked</arg>
+                        <arg>-Xcheckinit</arg>
+                        <arg>-Xfatal-warnings</arg>
+                        <arg>-Xfuture</arg>
+                        <arg>-Xlint:adapted-args</arg>
+                        <arg>-Xlint:by-name-right-associative</arg>
+                        <arg>-Xlint:constant</arg>
+                        <arg>-Xlint:delayedinit-select</arg>
+                        <arg>-Xlint:doc-detached</arg>
+                        <arg>-Xlint:inaccessible</arg>
+                        <arg>-Xlint:infer-any</arg>
+                        <arg>-Xlint:missing-interpolator</arg>
+                        <arg>-Xlint:nullary-override</arg>
+                        <arg>-Xlint:nullary-unit</arg>
+                        <arg>-Xlint:option-implicit</arg>
+                        <arg>-Xlint:package-object-classes</arg>
+                        <arg>-Xlint:poly-implicit-overload</arg>
+                        <arg>-Xlint:private-shadow</arg>
+                        <arg>-Xlint:stars-align</arg>
+                        <arg>-Xlint:type-parameter-shadow</arg>
+                        <arg>-Xlint:unsound-match</arg>
+                        <arg>-Yno-adapted-args</arg>
+                        <arg>-Ypartial-unification</arg>
+                        <arg>-Ywarn-dead-code</arg>
+                        <arg>-Ywarn-extra-implicit</arg>
+                        <arg>-Ywarn-inaccessible</arg>
+                        <arg>-Ywarn-infer-any</arg>
+                        <arg>-Ywarn-nullary-override</arg>
+                        <arg>-Ywarn-nullary-unit</arg>
+                        <arg>-Ywarn-numeric-widen</arg>
+                        <arg>-Ywarn-unused:implicits</arg>
+                        <arg>-Ywarn-unused:imports</arg>
+                        <arg>-Ywarn-unused:locals</arg>
+                        <arg>-Ywarn-unused:params</arg>
+                        <arg>-Ywarn-unused:patvars</arg>
+                        <arg>-Ywarn-unused:privates</arg>
+                        <arg>-Ywarn-value-discard</arg>
+                    </args>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
