@@ -11,12 +11,12 @@
         <relativePath />
     </parent>
 
-    <artifactId>ets-akka-stream-utils-aggregator</artifactId>
+    <artifactId>ets-akkastreamutils-aggregator</artifactId>
     <packaging>pom</packaging>
     <version>0.1-SNAPSHOT</version>
 
     <modules>
-        <module>ets-akka-stream-utils-core</module>
+        <module>ets-akkastreamutils-core</module>
     </modules>
 
 </project>

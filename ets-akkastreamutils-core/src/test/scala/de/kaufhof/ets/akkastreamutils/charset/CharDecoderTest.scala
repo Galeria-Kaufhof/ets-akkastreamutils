@@ -1,7 +1,8 @@
-package de.kaufhof.ets.akkastreamutils.core
+package de.kaufhof.ets.akkastreamutils.charset
 
 import java.nio.charset.Charset
 
+import de.kaufhof.ets.akkastreamutils.core.CharDecoder
 import org.scalatest.{Matchers, WordSpec}
 
 class CharDecoderTest extends WordSpec with Matchers {

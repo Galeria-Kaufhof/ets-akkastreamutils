@@ -17,18 +17,18 @@ object implicits {
 
   implicit class SourceSharedOps[T, Mat](val source: Source[T, Mat]) extends AnyVal {
 
-    def scanFinally[Out, State](initialState: () => State)
-                                 (unfold: (State, T) => (State, Option[Out]))
+    def scanFinally[Out, State](initialState: => State)
+                                 (f: (State, T) => (State, Option[Out]))
                                  (finalize: State => Option[Out]): Source[Out, Mat] =
-      source.via(StreamUtils.scanFinallyFlow(initialState)(unfold)(finalize))
+      source.via(StreamUtils.scanFinallyFlow(initialState)(f)(finalize))
 
-    def scanFinallyAsync[Out, State](initialState: () => State)
-                                      (unfold: (State, T) => Future[(State, Option[Out])])
+    def scanFinallyAsync[Out, State](initialState: => State)
+                                      (f: (State, T) => Future[(State, Option[Out])])
                                       (finalize: State => Future[Option[Out]])
                                       (implicit ec: ExecutionContext): Source[Out, Mat] =
-      source.via(StreamUtils.scanFinallyAsyncFlow(initialState)(unfold)(finalize))
+      source.via(StreamUtils.scanFinallyAsyncFlow(initialState)(f)(finalize))
 
-    def statefulFold[State](z: () => State)(f: (State, T) => State): Source[State, Mat] =
+    def statefulFold[State](z: => State)(f: (State, T) => State): Source[State, Mat] =
       source.via(StreamUtils.statefulFoldFlow(z)(f))
 
     def executeWithin(n: Int, d: FiniteDuration)(f: T => Future[Unit])(implicit ec: ExecutionContext): Source[T, Mat] =
@@ -50,18 +50,18 @@ object implicits {
 
   implicit class FlowSharedOps[In, T, Mat](val flow: Flow[In, T, Mat]) extends AnyVal {
 
-    def scanFinally[Out, State](initialState: () => State)
-                                 (unfold: (State, T) => (State, Option[Out]))
+    def scanFinally[Out, State](initialState: => State)
+                                 (f: (State, T) => (State, Option[Out]))
                                  (finalize: State => Option[Out]): Flow[In, Out, Mat] =
-      flow.via(StreamUtils.scanFinallyFlow(initialState)(unfold)(finalize))
+      flow.via(StreamUtils.scanFinallyFlow(initialState)(f)(finalize))
 
-    def scanFinallyAsync[Out, State](initialState: () => State)
-                                      (unfold: (State, T) => Future[(State, Option[Out])])
+    def scanFinallyAsync[Out, State](initialState: => State)
+                                      (f: (State, T) => Future[(State, Option[Out])])
                                       (finalize: State => Future[Option[Out]])
                                       (implicit ec: ExecutionContext): Flow[In, Out, Mat] =
-      flow.via(StreamUtils.scanFinallyAsyncFlow(initialState)(unfold)(finalize))
+      flow.via(StreamUtils.scanFinallyAsyncFlow(initialState)(f)(finalize))
 
-    def statefulFold[State](z: () => State)(f: (State, T) => State): Flow[In, State, Mat] =
+    def statefulFold[State](z: => State)(f: (State, T) => State): Flow[In, State, Mat] =
       flow.via(StreamUtils.statefulFoldFlow(z)(f))
 
     def executeWithin(n: Int, d: FiniteDuration)(f: T => Future[Unit])(implicit ec: ExecutionContext): Flow[In, T, Mat] =

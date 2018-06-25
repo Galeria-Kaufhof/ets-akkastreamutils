@@ -1,10 +1,11 @@
-package de.kaufhof.ets.akkastreamutils.core
+package de.kaufhof.ets.akkastreamutils.charset
 
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.util.ByteString
+import de.kaufhof.ets.akkastreamutils.core.StreamUtils
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}

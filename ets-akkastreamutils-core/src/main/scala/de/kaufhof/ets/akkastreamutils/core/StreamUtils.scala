@@ -88,16 +88,16 @@ object StreamUtils {
     * Last package may be smaller.
     */
   def minLengthFlow(minLength: Int = 64*1024): Flow[ByteString, ByteString, NotUsed] =
-    scanFinallyFlow[ByteString, ByteString, ByteString](() => ByteString.empty){(bufferBs, newBs) =>
-        val nextBs = bufferBs ++ newBs
-        if (nextBs.size >= minLength) {
-          (ByteString.empty, Some(nextBs))
-        } else {
-          (nextBs, None)
-        }
-      }{bufferBs =>
-        Some(bufferBs)
+    scanFinallyFlow[ByteString, ByteString, ByteString](ByteString.empty){(bufferBs, newBs) =>
+      val nextBs = bufferBs ++ newBs
+      if (nextBs.size >= minLength) {
+        (ByteString.empty, Some(nextBs))
+      } else {
+        (nextBs, None)
       }
+    }{bufferBs =>
+      Some(bufferBs)
+    }
 
   /**
     * Encode a ByteString with gzip, with a given minimal block size (to ensure encoding does not blow up size
@@ -114,25 +114,25 @@ object StreamUtils {
     * strip utf-8 bom from ByteString flow
     */
   val stripBomFlow: Flow[ByteString, ByteString, NotUsed] =
-      scanFinallyFlow[ByteString, ByteString, (ByteString, Boolean)](() => (ByteString.empty, false)){(state, newBs) =>
-        val (bufferBs, bomChecked) = state
-        if (bomChecked) {
-          (state, Some(newBs))
-        } else {
-          val nextBs = bufferBs ++ newBs
-          if (nextBs.size >= bom.size) {
-            if (nextBs.startsWith(bom)) {
-              ((ByteString.empty, true), Some(nextBs.drop(bom.size)))
-            } else {
-              ((ByteString.empty, true), Some(nextBs))
-            }
+    scanFinallyFlow[ByteString, ByteString, (ByteString, Boolean)]((ByteString.empty, false)){(state, newBs) =>
+      val (bufferBs, bomChecked) = state
+      if (bomChecked) {
+        (state, Some(newBs))
+      } else {
+        val nextBs = bufferBs ++ newBs
+        if (nextBs.size >= bom.size) {
+          if (nextBs.startsWith(bom)) {
+            ((ByteString.empty, true), Some(nextBs.drop(bom.size)))
           } else {
-            ((nextBs, false), None)
+            ((ByteString.empty, true), Some(nextBs))
           }
+        } else {
+          ((nextBs, false), None)
         }
-      }{state =>
-        Some(state._1)
       }
+    }{state =>
+      Some(state._1)
+    }
 
   //used in fixedBroadcastHub
   private sealed trait ElemOrEnd[+T]
@@ -169,11 +169,11 @@ object StreamUtils {
       }
   }
 
-  //used in unfoldFinallyFlow / unfoldFinallyAsyncFlow
-  private sealed trait UnfoldFinally[+T]
-  private case class  Element[T](v: T) extends UnfoldFinally[T]
-  private case object End extends UnfoldFinally[Nothing]
-  private case class UnfoldFinallyState[T, State](outElem: Option[T], state: Option[State])
+  //used in scanFinallyFlow / scanFinallyAsyncFlow
+  private sealed trait ScanFinally[+T]
+  private case class  Element[T](v: T) extends ScanFinally[T]
+  private case object End extends ScanFinally[Nothing]
+  private case class ScanFinallyState[T, State](outElem: Option[T], state: Option[State])
 
   /**
     * Scan an steroids:
@@ -184,23 +184,23 @@ object StreamUtils {
     * Downstream elements of type Out are emitted if unfold returns (_, Some[Out]).
     * Before the stream is closed finalize is called once allowing to pass down one last element if needed.
     */
-  def scanFinallyFlow[In, Out, State](initialState: () => State)
+  def scanFinallyFlow[In, Out, State](initialState: => State)
                                      (scan: (State, In) => (State, Option[Out]))
                                      (finalize: State => Option[Out]): Flow[In, Out, NotUsed] =
     Flow[In]
       .map(Element(_))
       .concat(Source.single(End))
-      .scan(UnfoldFinallyState[Out, State](None, None)){(state, newElem) =>
+      .scan(ScanFinallyState[Out, State](None, None)){(state, newElem) =>
         newElem match {
           case Element(e) =>
-            val (newState, nextElemOpt) = scan(state.state.getOrElse(initialState()), e)
-            UnfoldFinallyState(nextElemOpt, Some(newState))
+            val (newState, nextElemOpt) = scan(state.state.getOrElse(initialState), e)
+            ScanFinallyState(nextElemOpt, Some(newState))
           case End =>
-            state.copy(outElem = finalize(state.state.getOrElse(initialState())))
+            state.copy(outElem = finalize(state.state.getOrElse(initialState)))
         }
       }
       .collect{
-        case UnfoldFinallyState(Some(elem), _) => elem
+        case ScanFinallyState(Some(elem), _) => elem
       }
 
   /**
@@ -212,33 +212,33 @@ object StreamUtils {
     * Downstream elements of type Out are emitted if unfold returns (_, Some[Out]).
     * Before the stream is closed finalize is called once allowing to pass down one last element if needed.
     */
-  def scanFinallyAsyncFlow[In, Out, State](initialState: () => State)
+  def scanFinallyAsyncFlow[In, Out, State](initialState: => State)
                                           (unfold: (State, In) => Future[(State, Option[Out])])
                                           (finalize: State => Future[Option[Out]])
                                           (implicit ec: ExecutionContext): Flow[In, Out, NotUsed] =
     Flow[In]
       .map(Element(_))
       .concat(Source.single(End))
-      .scanAsync(UnfoldFinallyState[Out, State](None, None)){(state, newElem) =>
+      .scanAsync(ScanFinallyState[Out, State](None, None)){(state, newElem) =>
         newElem match {
           case Element(e) =>
-            unfold(state.state.getOrElse(initialState()), e).map { case (newState, nextElemOpt) =>
-              UnfoldFinallyState(nextElemOpt, Some(newState))
+            unfold(state.state.getOrElse(initialState), e).map { case (newState, nextElemOpt) =>
+              ScanFinallyState(nextElemOpt, Some(newState))
             }
           case End =>
-            finalize(state.state.getOrElse(initialState())).map(lastElemOpt =>
+            finalize(state.state.getOrElse(initialState)).map(lastElemOpt =>
               state.copy(outElem = lastElemOpt)
             )
         }
       }
       .collect{
-        case UnfoldFinallyState(Some(elem), _) => elem
+        case ScanFinallyState(Some(elem), _) => elem
       }
 
   /**
     * like fold, but zero value is recreated for every materialization
     */
-  def statefulFoldFlow[In, State](z: () => State)(f: (State, In) => State): Flow[In, State, NotUsed] =
+  def statefulFoldFlow[In, State](z: => State)(f: (State, In) => State): Flow[In, State, NotUsed] =
     scanFinallyFlow[In, State, State](z)((state, elem) => (f(state, elem), None))(Some(_))
 
   /**
@@ -343,9 +343,9 @@ object StreamUtils {
 
 }
 
-private[core] class CharDecoder(charset: Charset,
-                                       bufferSize: Int = 8192,
-                                       onMalformedInput: CodingErrorAction = CodingErrorAction.REPLACE) {
+private[akkastreamutils] class CharDecoder(charset: Charset,
+                                           bufferSize: Int = 8192,
+                                           onMalformedInput: CodingErrorAction = CodingErrorAction.REPLACE) {
 
   private val decoder = charset.newDecoder().onMalformedInput(onMalformedInput)
 
