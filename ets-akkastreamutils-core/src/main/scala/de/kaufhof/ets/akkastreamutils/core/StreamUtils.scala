@@ -273,7 +273,7 @@ object StreamUtils {
           case Some(Left(exc)) =>
             val elemsWithoutErrors = elemsOrError.dropRight(1)
             elemsWithoutErrors
-              .headOption
+              .lastOption
               .flatMap(_.right.toOption.map(f))
               .getOrElse(Future.successful(()))
               //ignore exception thrown by f here because stream execption happend and will throw further down
