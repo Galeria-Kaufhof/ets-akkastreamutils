@@ -17,7 +17,7 @@
 
     <artifactId>ets-akkastreamutils-aggregator</artifactId>
     <packaging>pom</packaging>
-    <version>0.1-SNAPSHOT</version>
+    <version>0.1.0</version>
 
     <modules>
         <module>ets-akkastreamutils-core</module>
