@@ -15,7 +15,7 @@
     </description>
 
     <!-- must not be the same as the parent because the parent is NOT the same project! -->
-    <version>0.1.0</version>
+    <version>0.2.0-SNAPSHOT</version>
     <artifactId>ets-akkastreamutils-core</artifactId>
 
     <!-- For galeria kaufhof internal purposes only, this profile will be removed in future!
