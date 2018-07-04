@@ -11,6 +11,10 @@
         <relativePath />
     </parent>
 
+    <description>
+        ETS Akka Stream Utils aggregator POM
+    </description>
+
     <artifactId>ets-akkastreamutils-aggregator</artifactId>
     <packaging>pom</packaging>
     <version>0.1-SNAPSHOT</version>
@@ -19,5 +23,12 @@
         <module>ets-akkastreamutils-core</module>
         <module>ets-akkastreamutils-charset</module>
     </modules>
+
+    <scm>
+        <url>https://github.com/Galeria-Kaufhof/ets-akkastreamutils</url>
+        <connection>scm:git:git@github.com:Galeria-Kaufhof/ets-akkastreamutils.git</connection>
+        <developerConnection>scm:git:git@github.com:Galeria-Kaufhof/ets-akkastreamutils.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
 
 </project>

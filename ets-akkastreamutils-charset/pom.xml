@@ -14,6 +14,10 @@
     <version>0.1-SNAPSHOT</version>
     <artifactId>ets-akkastreamutils-charset</artifactId>
 
+    <description>
+        ETS Akka Stream Utils automatic charset detection and decoding support
+    </description>
+
     <!-- For galeria kaufhof internal purposes only, this profile will be removed in future!
     This will not work for releases! The idea is to call mvn -P scala-2.11 package and copy the pure target/<lib>.jar
     to the project using deprecated scala 2.11-->

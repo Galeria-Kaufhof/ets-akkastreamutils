@@ -10,6 +10,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
+    <description>
+        ETS Akka Stream Utils library core implementation
+    </description>
+
     <!-- must not be the same as the parent because the parent is NOT the same project! -->
     <version>0.1-SNAPSHOT</version>
     <artifactId>ets-akkastreamutils-core</artifactId>
